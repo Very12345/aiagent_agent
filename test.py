@@ -27,7 +27,7 @@ class Planner:
     
     def _load_prompt_file(self, filename: str) -> str | None:
         """Load prompt content from a markdown file if it exists."""
-        prompt_path = self.workdir / filename
+        prompt_path = self.workdir / "planner" / filename
         if prompt_path.exists():
             return prompt_path.read_text(encoding="utf-8")
         return None
@@ -68,7 +68,7 @@ class Planner:
             plan = {"raw_response": result.final_response, "steps": []}
         
         # Save plan for builder
-        plan_path = self.workdir / "plan.json"
+        plan_path = self.workdir / "output" / "plan.json"
         with open(plan_path, "w") as f:
             json.dump(plan, f, indent=2)
         
@@ -84,14 +84,14 @@ class Builder:
     
     def _load_prompt_file(self, filename: str) -> str | None:
         """Load prompt content from a markdown file if it exists."""
-        prompt_path = self.workdir / filename
+        prompt_path = self.workdir / "builder" / filename
         if prompt_path.exists():
             return prompt_path.read_text(encoding="utf-8")
         return None
     
     async def run(self, plan: dict = None )-> dict:
         """Read plan.json (or use provided plan), execute steps, return solution."""
-        plan_path = self.workdir / "plan.json"
+        plan_path = self.workdir / "output" / "plan.json"
         if not plan_path.exists() and not plan:
             raise FileNotFoundError(f"Plan file not found: {plan_path}")
         
@@ -124,7 +124,7 @@ class Builder:
             solution = {"raw_response": result.final_response}
         
         # Save solution for evaluator
-        solu_path = self.workdir / "solu.json"
+        solu_path = self.workdir / "output" / "solu.json"
         with open(solu_path, "w") as f:
             json.dump(solution, f, indent=2)
         
@@ -140,14 +140,14 @@ class Evaluator:
     
     def _load_prompt_file(self, filename: str) -> str | None:
         """Load prompt content from a markdown file if it exists."""
-        prompt_path = self.workdir / filename
+        prompt_path = self.workdir / "evaluator" / filename
         if prompt_path.exists():
             return prompt_path.read_text(encoding="utf-8")
         return None
     
     async def run(self, solution: dict = None, original_question: dict = None) -> dict:
         """Read solu.json (or use provided solution), evaluate quality, return assessment."""
-        solu_path = self.workdir / "solu.json"
+        solu_path = self.workdir / "output" / "solu.json"
         if not solu_path.exists() and not solution:
             raise FileNotFoundError(f"Solution file not found: {solu_path}")
         
@@ -156,7 +156,7 @@ class Evaluator:
                 solution = json.load(f)
         
         # Load original question if available for context
-        ques_path = self.workdir / "ques.json"
+        ques_path = self.workdir / "output" / "ques.json"
         question_context = ""
         if ques_path.exists():
             with open(ques_path, "r") as f:
@@ -191,7 +191,7 @@ class Evaluator:
         except json.JSONDecodeError:
             evaluation = {"raw_response": result.final_response, "score": None}
             
-        eval_path = self.workdir / "eval.json"
+        eval_path = self.workdir / "output" / "eval.json"
         with open(eval_path, "w") as f:
             json.dump(evaluation, f, indent=2)
         
