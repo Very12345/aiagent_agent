@@ -2,20 +2,20 @@
   "problem": "find the time a ball fall onto the ground at height H.",
   "plan": [
     {
-      "step": "Identify the physics model: free fall under constant gravitational acceleration g, starting from rest (initial velocity = 0).",
-      "status": "completed"
+      "step": "Identify the physics model: free fall under constant gravitational acceleration g, with initial velocity v\u2080 = 0",
+      "status": "pending"
     },
     {
-      "step": "Apply the kinematic equation for displacement: H = (1/2)gt\u00b2, where H is height, g is gravitational acceleration (~9.8 m/s\u00b2), and t is time.",
-      "status": "completed"
+      "step": "Apply the kinematic equation for displacement: H = v\u2080t + (1/2)gt\u00b2",
+      "status": "pending"
     },
     {
-      "step": "Solve for time t: rearrange to get t = \u221a(2H/g).",
-      "status": "completed"
+      "step": "Substitute v\u2080 = 0 and solve for time t: t = \u221a(2H/g)",
+      "status": "pending"
     },
     {
-      "step": "Present the final formula and note assumptions: no air resistance, constant g, ball starts from rest, and H is measured in meters for SI units.",
-      "status": "in_progress"
+      "step": "Present the final formula with assumptions (no air resistance, constant g \u2248 9.8 m/s\u00b2)",
+      "status": "pending"
     }
   ]
 }

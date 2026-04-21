@@ -3,6 +3,11 @@
   "name": "标准构建链",
   "tasks": [
     {
+      "name": "load_agent",
+      "type": "load",
+      "agents": ["planner", "builder", "evaluator"]
+    },
+    {
       "name": "规划阶段",
       "type": "task",
       "func": "planner"

@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 import subprocess
 import sys
+import importlib    
 
 def err_logger(msg: str):
     print(f"\033[91m{msg}\033[0m")
@@ -71,203 +72,7 @@ def register_task(name: str):
         return cls
     return wrapper
 
-@register_task("planner")
-class Planner:
-    """读取 ques.json 并生成执行计划"""
-    
-    def __init__(self, codex: Codex, workdir: Path):
-        self.codex = codex
-        self.workdir = workdir
-    
-    def _load_prompt_file(self, filename: str) -> str | None:
-        """如果存在则从 markdown 文件加载提示内容"""
-        prompt_path = self.workdir / "agent" / "planner" / filename
-        if prompt_path.exists():
-            return prompt_path.read_text(encoding="utf-8")
-        return None
-    
-    async def run(self) -> dict:
-        """读取 ques.json，规划解决方案，返回计划字典"""
-        ques_path = self.workdir / "question" / "ques.json"
-        if not ques_path.exists():
-            err_logger(f"问题文件未找到: {ques_path}")
-            exit(1)
-        
-        with open(ques_path, "r") as f:
-            question_data = json.load(f)
-        
-        # 如果存在 planner.md 则自动加载作为自定义提示
-        planner_prompt = self._load_prompt_file("planner.md")
-        planner_base_prompt = self._load_prompt_file("planner_base.md")
-        if planner_prompt:
-            # 使用 planner.md 内容作为开发者指令
-            developer_instructions = planner_prompt
-            base_instructions = "输出包含步骤、资源和成功标准的有效 JSON。"
-        else:
-            err_logger(f"规划提示文件未找到: {self.workdir / 'agent' / 'planner' / 'planner.md'}")
-            exit(1)
-        
-        if planner_base_prompt:
-            base_instructions = planner_base_prompt
-        else:
-            err_logger(f"规划基础提示文件未找到: {self.workdir / 'agent' / 'planner' / 'planner_base.md'}")
-            exit(1)
-        
-        thread = self.codex.thread_start(
-            model="qwen3.5-plus",
-            developer_instructions=developer_instructions,
-            base_instructions=base_instructions
-        )
-        
-        prompt = f"{json.dumps(question_data, indent=2)}"
-        result = await asyncio.to_thread(thread.run, prompt)
-        
-        try:
-            plan = json.loads(result.final_response)
-        except json.JSONDecodeError:
-            plan = {"raw_response": result.final_response, "steps": []}
-        
-        # 保存计划供 builder 使用
-        plan_path = self.workdir / "workspace" / "plan" / "plan.json"
-        with open(plan_path, "w") as f:
-            json.dump(plan, f, indent=2)
-        
-        info_logger(f"plan: {plan}\nplan_path: {plan_path}\n")
-        return plan
 
-@register_task("builder")
-class Builder:
-    """读取 plan.json 并构建解决方案"""
-    
-    def __init__(self, codex: Codex, workdir: Path):
-        self.codex = codex
-        self.workdir = workdir
-    
-    def _load_prompt_file(self, filename: str) -> str | None:
-        """如果存在则从 markdown 文件加载提示内容"""
-        prompt_path = self.workdir / "agent" / "builder" / filename
-        if prompt_path.exists():
-            return prompt_path.read_text(encoding="utf-8")
-        return None
-    
-    async def run(self, plan: dict = None) -> dict:
-        """读取 plan.json（或使用传入的计划），执行步骤，返回解决方案"""
-        plan_path = self.workdir / "workspace" / "plan" / "plan.json"
-        if not plan_path.exists() and not plan:
-            err_logger(f"计划文件未找到: {plan_path}")
-            exit(1)
-        
-        if not plan and plan_path.exists():
-            with open(plan_path, "r") as f:
-                plan = json.load(f)
-        
-        # 如果存在 builder.md 则自动加载作为自定义提示
-        builder_prompt = self._load_prompt_file("builder.md")
-        builder_base_prompt = self._load_prompt_file("builder_base.md")
-        
-        if builder_prompt:
-            developer_instructions = builder_prompt
-            base_instructions = "输出包含结果的有效 JSON。"
-        else:
-            err_logger(f"解决方案提示文件未找到: {self.workdir / 'agent' / 'builder' / 'builder.md'}")
-            exit(1)
-        
-        if builder_base_prompt:
-            base_instructions = builder_base_prompt
-        else:
-            err_logger(f"解决方案基础提示文件未找到: {self.workdir / 'agent' / 'builder' / 'builder_base.md'}")
-            exit(1)
-        
-        thread = self.codex.thread_start(
-            model="qwen3.5-plus",
-            developer_instructions=developer_instructions,
-            base_instructions=base_instructions
-        )
-        
-        prompt = f"{json.dumps(plan, indent=2)}"
-        result = await asyncio.to_thread(thread.run, prompt)
-        
-        try:
-            solution = json.loads(result.final_response)
-        except json.JSONDecodeError:
-            solution = {"raw_response": result.final_response}
-        
-        # 保存解决方案供 evaluator 使用
-        solu_path = self.workdir / "workspace" / "solution" / "solu.json"
-        with open(solu_path, "w") as f:
-            json.dump(solution, f, indent=2)
-        
-        info_logger(f"solu: {solution}\nsolu_path: {solu_path}\n")
-        return solution
-
-@register_task("evaluator")
-class Evaluator:
-    """读取 solu.json 并评估解决方案"""
-    
-    def __init__(self, codex: Codex, workdir: Path):
-        self.codex = codex
-        self.workdir = workdir
-    
-    def _load_prompt_file(self, filename: str) -> str | None:
-        """如果存在则从 markdown 文件加载提示内容"""
-        prompt_path = self.workdir / "agent" / "evaluator" / filename
-        if prompt_path.exists():
-            return prompt_path.read_text(encoding="utf-8")
-        return None
-    
-    async def run(self, solution: dict = None) -> dict:
-        """读取 solu.json（或使用传入的解决方案），执行评估，返回评估结果"""
-        solu_path = self.workdir / "workspace" / "solution" / "solu.json"
-        if not solu_path.exists() and not solution:
-            err_logger(f"解决方案文件未找到: {solu_path}")
-            exit(1)
-        
-        if not solution and solu_path.exists():
-            with open(solu_path, "r") as f:
-                solution = json.load(f)
-        
-        ques_path = self.workdir / "question" / "ques.json"
-        with open(ques_path, "r") as f:
-            question_data = json.load(f)
-        
-        # 如果存在 evaluator.md 则自动加载作为自定义提示
-        evaluator_prompt = self._load_prompt_file("evaluator.md")
-        evaluator_base_prompt = self._load_prompt_file("evaluator_base.md") 
-        
-        if evaluator_prompt:
-            developer_instructions = evaluator_prompt
-            base_instructions = "输出包含评分和反馈的有效 JSON。"
-        else:
-            err_logger(f"评估提示文件未找到: {self.workdir / 'agent' / 'evaluator' / 'evaluator.md'}")
-            exit(1)
-        
-        if evaluator_base_prompt:
-            base_instructions = evaluator_base_prompt
-        else:
-            err_logger(f"评估基础提示文件未找到: {self.workdir / 'agent' / 'evaluator' / 'evaluator_base.md'}")
-            exit(1)
-        
-        thread = self.codex.thread_start(
-            model="qwen3.5-plus",
-            developer_instructions=developer_instructions,
-            base_instructions=base_instructions
-        )
-        
-        prompt = f"问题: {json.dumps(question_data, indent=2)}\n\n解决方案: {json.dumps(solution, indent=2)}"
-        result = await asyncio.to_thread(thread.run, prompt)
-        
-        try:
-            evaluation = json.loads(result.final_response)
-        except json.JSONDecodeError:
-            evaluation = {"raw_response": result.final_response}
-        
-        # 保存评估结果
-        eval_path = self.workdir / "workspace" / "evaluation" / "eval.json"
-        with open(eval_path, "w") as f:
-            json.dump(evaluation, f, indent=2)
-        
-        info_logger(f"evaluation: {evaluation}\neval_path: {eval_path}\n")
-        return evaluation
 
 def get_task_registry(codex: Codex, workdir: Path) -> dict:
     """获取已实例化的任务注册表，将类转换为可调用方法"""
@@ -280,9 +85,11 @@ def get_task_registry(codex: Codex, workdir: Path) -> dict:
 class AsyncWorkflowEngine:
     """异步工作流引擎：解析并执行 JSON 配置的工作流"""
     
-    def __init__(self, workflow: dict, task_registry: dict):
+    def __init__(self, workflow: dict, task_registry: dict, codex=None, workdir=None):
         self.workflow = workflow
         self.task_registry = task_registry
+        self.codex = codex
+        self.workdir = workdir
 
     def _replace_params(self, params, loop_index):
         """替换参数中的循环索引占位符"""
@@ -291,20 +98,37 @@ class AsyncWorkflowEngine:
         s = json.dumps(params).replace("{{loop_index}}", str(loop_index))
         return json.loads(s)
 
+    async def load_agent(self, agents):
+        """加载智能体"""
+        for agent in agents:
+            #从agent对应目录加载agent.py文件
+            agent_path = Path("agent") / agent / "agent.py"
+            if not agent_path.exists():
+                err_logger(f"智能体文件未找到: {agent_path}")
+                exit(1)
+            # 从agent/agent名目录的agent.py加载Main类
+            module = importlib.import_module(f"agent.{agent}.agent")
+            # 创建Main类的实例并存储实例本身，而不是run方法
+            self.task_registry[agent] = module.Main(self.codex, self.workdir)
+            info_logger(f"  [加载智能体] {agent}")
+
     async def execute(self, step, loop_index=None):
         """执行单个工作流步骤"""
         stype = step.get("type")
         name = step.get("name", "Unnamed")
 
         # 原子任务：异步执行单个函数
-        if stype == "task":
-            func = self.task_registry[step["func"]]
+        if stype == "load":
+            return await self.load_agent(step["agents"])
+        
+        elif stype == "task":
+            agent_instance = self.task_registry[step["func"]]
             params = self._replace_params(step.get("params", {}), loop_index)
             info_logger(f"  [执行任务] {name}")
             if params:
-                return await func(self, **params)
+                return await agent_instance.run(**params)
             else:
-                return await func()
+                return await agent_instance.run()
 
         # 顺序管线：按顺序执行多个子任务
         elif stype == "pipeline":
@@ -347,7 +171,7 @@ class AsyncWorkflowEngine:
     async def run(self):
         """执行整个工作流"""
         start_time = time.perf_counter()
-        info_logger(f"🚀 异步引擎启动: {self.workflow.get('workflow_name')}")
+        info_logger(f"🚀 异步引擎启动: {self.workflow.get('name')}")
         
         for step in self.workflow["tasks"]:
             await self.execute(step)
@@ -373,7 +197,7 @@ async def main():
 
     # 4. 实例化引擎并运行
     # 传入的是 active_registry（已实例化的方法映射）
-    engine = AsyncWorkflowEngine(workflow_config, active_registry)
+    engine = AsyncWorkflowEngine(workflow_config, active_registry, codex_instance, work_path)
     await engine.run()
 
 if __name__ == "__main__":
