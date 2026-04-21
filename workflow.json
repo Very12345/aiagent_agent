@@ -24,8 +24,7 @@
             {
               "name": "评估阶段",
               "type": "task",
-              "func": "evaluator",
-              "output_key": "eval_result"
+              "func": "evaluator"
             }
           ]
       }
