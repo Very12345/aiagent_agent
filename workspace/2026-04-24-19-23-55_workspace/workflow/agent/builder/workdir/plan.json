@@ -1,0 +1,33 @@
+{
+  "problem": "find the time a ball fall onto the ground at height H.",
+  "plan": [
+    {
+      "step": "Identify the physics principle and formula",
+      "detailed_task": "Recognize this as a free fall problem under constant gravitational acceleration. The relevant formula is t = sqrt(2H/g) where t is time, H is height, and g is gravitational acceleration (~9.8 m/s\u00b2 on Earth).",
+      "tools_can_use": [
+        "web_search"
+      ]
+    },
+    {
+      "step": "Define variables and constants",
+      "detailed_task": "Set up the problem with H as the input height variable, g = 9.8 m/s\u00b2 as Earth's gravitational acceleration, and ensure units are consistent (meters for height, seconds for time).",
+      "tools_can_use": [
+        "shell"
+      ]
+    },
+    {
+      "step": "Implement the calculation",
+      "detailed_task": "Create a script or use shell commands to compute t = sqrt(2*H/g) for a given height H, handling edge cases like H <= 0.",
+      "tools_can_use": [
+        "shell"
+      ]
+    },
+    {
+      "step": "Validate and present the solution",
+      "detailed_task": "Verify the formula with a sample calculation (e.g., H=10m should give t\u22481.43s) and output the final solution with the formula and usage instructions.",
+      "tools_can_use": [
+        "shell"
+      ]
+    }
+  ]
+}

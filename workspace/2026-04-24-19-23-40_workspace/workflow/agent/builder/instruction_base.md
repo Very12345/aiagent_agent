@@ -5,8 +5,7 @@ your output MUST be only JSON like:
     "plan": [
         {
             "step": string,
-            "detailed_task": string,
-            "tools_can_use": array of strings
+            "detailed_solution": string
         },
         more steps if needed
     ]

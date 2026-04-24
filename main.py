@@ -94,13 +94,17 @@ class AsyncWorkflowEngine:
             self.copy_dir(Path(args.workflow_dir), self.workspace / "workflow")
             self.info_logger(f"使用工作流目录: {self.workspace / 'workflow'}")
         else:
-            self.copy_dir(self.workdir /"template" / "workflow", self.workspace / "workflow")
+            self.copy_dir(Path(self.workdir /"template" / "workflow"), self.workspace / "workflow")
             self.info_logger(f"使用模板工作流目录: {self.workspace / 'workflow'}")
         # 读取工作流配置
         if not (self.workspace / "workflow" / "workflow.json").exists():
             self.err_logger("工作流目录中没有 workflow.json 文件")
             sys.exit(1)
         self.workflow = json.loads((self.workspace / "workflow" / "workflow.json").read_text(encoding="utf-8"))
+        self.total_tokens = 0
+    def static_usage(self, usage):
+        self.info_logger(f"使用 token: {usage.total.total_tokens}")
+        self.total_tokens += usage.total.total_tokens
 
     def copy_dir(self, src: Path, dst: Path):
         """递归复制目录"""
@@ -112,7 +116,7 @@ class AsyncWorkflowEngine:
             if item.is_dir():
                 self.copy_dir(item, dst / item.name)
             else:
-                item.copy(dst / item.name)
+                shutil.copy(item, dst / item.name)
     def err_logger(self, msg: str):
         print(f"\033[91m{msg}\033[0m")
     def info_logger(self, msg: str, data: any = None):
@@ -197,12 +201,6 @@ class AsyncWorkflowEngine:
             thisworkspace.mkdir(parents=True, exist_ok=True)
         if not (thisworkspace / "question").exists():
             (thisworkspace / "question").mkdir(parents=True, exist_ok=True)
-        if not (thisworkspace / "plan").exists():
-            (thisworkspace / "plan").mkdir(parents=True, exist_ok=True)
-        if not (thisworkspace / "solution").exists():
-            (thisworkspace / "solution").mkdir(parents=True, exist_ok=True)
-        if not (thisworkspace / "evaluation").exists():
-            (thisworkspace / "evaluation").mkdir(parents=True, exist_ok=True)
         if not (thisworkspace / "log").exists():
             (thisworkspace / "log").mkdir(parents=True, exist_ok=True)
         
@@ -238,7 +236,7 @@ class AsyncWorkflowEngine:
             sys.modules[f"{agent}_agent"] = module
             spec.loader.exec_module(module)
             
-            self.task_registry[agent] = module.Main(self.codex, self.workspace, err_logger, info_logger)
+            self.task_registry[agent] = module.Main(self.codex, self.workspace / "workflow" / "agent" / agent, self.workspace / "question", err_logger, info_logger)
             info_logger(f"  [加载智能体] {agent}")
 
     async def execute(self, step, loop_index=None):
@@ -255,9 +253,11 @@ class AsyncWorkflowEngine:
             params = self._replace_params(step.get("params", {}), loop_index)
             self.info_logger(f"  [执行任务] {name}")
             if params:
-                return await agent_instance.run(**params)
+                result = await agent_instance.run(**params)
             else:
-                return await agent_instance.run()
+                result = await agent_instance.run()
+            self.static_usage(result.usage)
+            return json.loads(result.final_response)
 
         # 顺序管线：按顺序执行多个子任务
         elif stype == "pipeline":
@@ -314,8 +314,12 @@ class AsyncWorkflowEngine:
                 arcname = self.workspace.name.split("/")[-1]
                 zipf.write(self.workspace, arcname=arcname)
             shutil.rmtree(self.workspace)
-        
-# 主程序入口
+    #在类注销的时候打印总token数
+    async def __del__(self):
+        await self.codex.close()
+        self.info_logger(f"总token数: {self.total_tokens}")
+        self.package_workflow()
+       # 主程序入口
 config = AppServerConfig()
 where_result = subprocess.run(["where", "codex.cmd"], text=True, capture_output=True, check=True,)
 config.codex_bin = where_result.stdout.strip()
@@ -328,7 +332,6 @@ async def main(args: argparse.Namespace):
 
     engine = AsyncWorkflowEngine(args, codex_instance, work_path)
     await engine.run()
-    engine.package_workflow()
 
 if __name__ == "__main__":
     #处理例如python main.py -w test -f question.json -s "{'ques': {'ques': '你好'}}"

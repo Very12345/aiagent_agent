@@ -1,0 +1,26 @@
+{
+  "problem": "find the time a ball fall onto the ground at height H.",
+  "solution": [
+    {
+      "step": "Identify the physics formula for free fall",
+      "solution": "success",
+      "advice": "Correctly applied t = sqrt(2H/g) formula derived from kinematic equations. Consider explicitly noting assumptions: no air resistance, initial velocity = 0, constant g."
+    },
+    {
+      "step": "Define input parameters and constants",
+      "solution": "success",
+      "advice": "Parameters H=100m and g=9.8 m/s\u00b2 are appropriate with consistent SI units. For broader utility, consider implementing H as a configurable input parameter rather than a fixed example value."
+    },
+    {
+      "step": "Implement the calculation",
+      "solution": "success",
+      "advice": "Calculation is mathematically accurate: sqrt(2*100/9.8) = sqrt(20.408) \u2248 4.5175s. PowerShell [Math]::Sqrt() is an appropriate choice for this computation."
+    },
+    {
+      "step": "Return the computed result",
+      "solution": "success",
+      "advice": "Result is properly formatted with units and reasonable precision (4 decimal places). Consider adding input validation for edge cases (H \u2264 0, non-numeric inputs) for production robustness."
+    }
+  ],
+  "score": 99
+}

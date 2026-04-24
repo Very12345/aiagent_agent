@@ -1,4 +1,3 @@
-read the plan.json file and execute the steps
 your output MUST be only JSON like:
 ```json
 {
