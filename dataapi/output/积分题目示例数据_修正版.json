@@ -1,0 +1,92 @@
+[
+  {
+    "question": "int(x^3, x=0..2)=",
+    "answer": "4",
+    "solution": "本题为幂函数的定积分。根据牛顿 - 莱布尼茨公式，先求原函数 x^4/4，代入上下限得 (2^4/4) - (0^4/4) = 4 - 0 = 4。",
+    "tag": {
+      "tools_solvable": [],
+      "symbolic": true,
+      "problem_type": "int",
+      "pure_int": true,
+      "have_definite": true,
+      "have_indefinite": false,
+      "is_multi": false,
+      "is_divergent": false
+    }
+  },
+  {
+    "question": "求解不定积分：int(1/x)dx，其中 x>0",
+    "answer": "ln(x) + C",
+    "solution": "本题为对数函数的导数逆运算。根据基本积分公式，1/x 的原函数为 ln|x|，由于题目给定 x>0，故答案为 ln(x) + C。",
+    "tag": {
+      "tools_solvable": [],
+      "symbolic": true,
+      "problem_type": "int",
+      "pure_int": false,
+      "have_definite": false,
+      "have_indefinite": true,
+      "is_multi": false,
+      "is_divergent": false
+    }
+  },
+  {
+    "question": "计算级数和：sum(n=1 to inf) 1/(2^n)",
+    "answer": "1",
+    "solution": "本题为等比级数求和，首项 a=1/2，公比 r=1/2。根据等比级数求和公式 S=a/(1-r)，代入得 (1/2)/(1-1/2) = 1。",
+    "tag": {
+      "tools_solvable": [],
+      "symbolic": true,
+      "problem_type": "sum",
+      "pure_int": true,
+      "have_definite": false,
+      "have_indefinite": false,
+      "is_multi": false,
+      "is_divergent": false
+    }
+  },
+  {
+    "question": "计算：int(a*sin(x), x=0..pi)，其中 a 为常数，sin 为正弦函数",
+    "answer": "2*a",
+    "solution": "本题为含参数的三角函数定积分。sin(x) 的原函数为 -cos(x)，因此原式 = a*[-cos(pi) - (-cos(0))] = a*[1+1] = 2a。",
+    "tag": {
+      "tools_solvable": [],
+      "symbolic": true,
+      "problem_type": "int",
+      "pure_int": false,
+      "have_definite": true,
+      "have_indefinite": false,
+      "is_multi": true,
+      "is_divergent": false
+    }
+  },
+  {
+    "question": "计算定积分：int(1/x, x=1..inf)，判断敛散性",
+    "answer": "发散",
+    "solution": "本题为无穷区间上的广义积分。int(1/x, x=1..inf) = lim(b->inf) [ln(b) - ln(1)] = lim(b->inf) ln(b) = +inf，故该积分发散。",
+    "tag": {
+      "tools_solvable": [],
+      "symbolic": true,
+      "problem_type": "int",
+      "pure_int": true,
+      "have_definite": true,
+      "have_indefinite": false,
+      "is_multi": false,
+      "is_divergent": true
+    }
+  },
+  {
+    "question": "int(x^2*exp(x), x=0..1)=",
+    "answer": "exp(1) - 2",
+    "solution": "本题为分部积分法求解的定积分。设 u=x^2，dv=exp(x)dx，则 du=2xdx，v=exp(x)。第一次分部积分得 x^2*exp(x) - int(2x*exp(x))dx，对剩余积分再次分部积分，最终代入上下限得 exp(1)-2。",
+    "tag": {
+      "tools_solvable": [],
+      "symbolic": true,
+      "problem_type": "int",
+      "pure_int": true,
+      "have_definite": true,
+      "have_indefinite": true,
+      "is_multi": false,
+      "is_divergent": false
+    }
+  }
+]

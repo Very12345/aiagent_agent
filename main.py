@@ -94,7 +94,7 @@ class AsyncWorkflowEngine:
             self.copy_dir(Path(args.workflow_dir), self.workspace / "workflow")
             self.info_logger(f"使用工作流目录: {self.workspace / 'workflow'}")
         else:
-            self.copy_dir(Path(self.workdir /"template" / "workflow"), self.workspace / "workflow")
+            self.copy_dir(Path(self.workdir /"template" / "templateworkflow"), self.workspace / "workflow")
             self.info_logger(f"使用模板工作流目录: {self.workspace / 'workflow'}")
         # 读取工作流配置
         if not (self.workspace / "workflow" / "workflow.json").exists():
