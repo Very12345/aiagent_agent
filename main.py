@@ -65,7 +65,7 @@ class AsyncWorkflowEngine:
         self.workdir = workdir
         self.thisworktime = get_worktime()
         if(args.workspace):
-            self.workspace = args.workspace
+            self.workspace = Path(args.workspace)
             self.init_workspace(self.workspace)
         else:
             self.workspace = self.create_workspace(workdir)
@@ -197,8 +197,6 @@ class AsyncWorkflowEngine:
         # str' object has no attribute 'exists'
         if not thisworkspace.exists():
             thisworkspace.mkdir(parents=True, exist_ok=True)
-        if not thisworkspace.exists():
-            thisworkspace.mkdir(parents=True, exist_ok=True)
         if not (thisworkspace / "question").exists():
             (thisworkspace / "question").mkdir(parents=True, exist_ok=True)
         if not (thisworkspace / "log").exists():
@@ -308,17 +306,24 @@ class AsyncWorkflowEngine:
         self.info_logger(f"\n✅ 流程全部完成，总耗时: {time.perf_counter() - start_time:.2f}s")
     def package_workflow(self):
         """打包工作流"""
-        if str(self.workspace.resolve()).startswith(str(self.workdir / "workspace")):
-            zip_file = self.workspace.with_suffix(".zip")
-            with zipfile.ZipFile(zip_file, "w") as zipf:
-                arcname = self.workspace.name.split("/")[-1]
-                zipf.write(self.workspace, arcname=arcname)
-            shutil.rmtree(self.workspace)
+        #打包workspace目录下的所有文件到zip文件
+        zip_file = self.workspace.with_suffix(".zip")
+        with zipfile.ZipFile(zip_file, "w") as zipf:
+            arcname = self.workspace.name.split("/")[-1]
+            zipf.write(self.workspace, arcname=arcname)
+        # shutil.rmtree(self.workspace)
     #在类注销的时候打印总token数
-    async def __del__(self):
+    async def close(self):
+        """显式关闭方法"""
         await self.codex.close()
         self.info_logger(f"总token数: {self.total_tokens}")
         self.package_workflow()
+        
+    
+    def __del__(self):
+        if not hasattr(self, '_closed') or not self._closed:
+            import warnings
+            warnings.warn(f"{self.__class__.__name__} 没有正确关闭，请使用 async with 或显式调用 close()", ResourceWarning)
        # 主程序入口
 config = AppServerConfig()
 where_result = subprocess.run(["where", "codex.cmd"], text=True, capture_output=True, check=True,)
@@ -332,6 +337,7 @@ async def main(args: argparse.Namespace):
 
     engine = AsyncWorkflowEngine(args, codex_instance, work_path)
     await engine.run()
+    await engine.close()
 
 if __name__ == "__main__":
     #处理例如python main.py -w test -f question.json -s "{'ques': {'ques': '你好'}}"
