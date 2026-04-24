@@ -2,6 +2,7 @@
 import json
 import shutil
 import time
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -308,10 +309,15 @@ class AsyncWorkflowEngine:
         """打包工作流"""
         #打包workspace目录下的所有文件到zip文件
         zip_file = self.workspace.with_suffix(".zip")
-        with zipfile.ZipFile(zip_file, "w") as zipf:
-            arcname = self.workspace.name.split("/")[-1]
-            zipf.write(self.workspace, arcname=arcname)
-        # shutil.rmtree(self.workspace)
+        with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+            # 递归遍历workspace目录下的所有文件和子目录
+            for root, dirs, files in os.walk(self.workspace):
+                for file in files:
+                    file_path = Path(root) / file
+                    # 计算相对路径，保持目录结构
+                    arcname = file_path.relative_to(self.workspace.parent)
+                    zipf.write(file_path, arcname=arcname)
+        shutil.rmtree(self.workspace)
     #在类注销的时候打印总token数
     async def close(self):
         """显式关闭方法"""
