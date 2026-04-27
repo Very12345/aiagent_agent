@@ -1,15 +1,21 @@
-read the solution.json file and evaluate the solution
+read the solution.json&question_content.json&question_tag.json&question_answer.json file and evaluate the solution
 your output MUST be only JSON like:
 ```json
 {
     "problem": string,
-    "solution": [
+    "solutions": [
         {
-            "step": string,
-            "solution": "success"/"failure",
-            "advice": string
+            "num":i,
+            "steps":[
+                {
+                    "step": string,
+                    "solution": "success"/"failure",
+                    "advice": string
+                },
+                more steps if needed
+            ]       
         },
-        more steps if needed
+        more if theres more solutions to evaluate
     ],
     "score": number
 }

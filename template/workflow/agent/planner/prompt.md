@@ -1,5 +1,6 @@
-read question.json and solve the problem
+read question\_content.json\&question\_tag.json and solve the problem
 your output MUST be only JSON like:
+
 ```json
 {
     "problem": string,
@@ -13,5 +14,6 @@ your output MUST be only JSON like:
     ]
 }
 ```
+
 don't output any other content except the JSON.
-don't use ```json``` to wrap the JSON.
+don't use `json` to wrap the JSON.

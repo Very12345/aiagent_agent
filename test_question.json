@@ -1,0 +1,18 @@
+{
+  "id": "19_15",
+  "source": "001",
+  "question": "19.15 Find $\\int \\frac{1}{\\sec x} dx.$",
+  "answer": "$\\sin x + C.$",
+  "solution": "$\\int \\frac{1}{\\sec x} dx = \\int \\cos x dx = \\sin x + C.$",
+  "tag": {
+    "tools_solvable": [],
+    "symbolic": false,
+    "problem_type": "int",
+    "pure_int": false,
+    "have_definite": false,
+    "have_indefinite": true,
+    "is_multi": false,
+    "is_divergent": false
+  },
+  "reference": []
+}

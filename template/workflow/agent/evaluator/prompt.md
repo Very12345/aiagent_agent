@@ -1,4 +1,4 @@
-read the solution.json file and evaluate the solution
+read the solution.json&question_content.json&question_tag.json&question_answer.json file and evaluate the solution
 your output MUST be only JSON like:
 ```json
 {

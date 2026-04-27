@@ -65,26 +65,54 @@ class AsyncWorkflowEngine:
         self.codex = codex
         self.workdir = workdir
         self.thisworktime = get_worktime()
+        self.unpack = args.unpack
         if(args.workspace):
             self.workspace = Path(args.workspace)
             self.init_workspace(self.workspace)
         else:
             self.workspace = self.create_workspace(workdir)
         if(args.question_file):
-            question = args.question_file
-            with open(question, "r") as f:
-                question = json.load(f)
-        elif(args.question_content):
-            question = args.question_content
-            self.info_logger(f"使用问题内容: {question}")
+            questionf = args.question_file
         else:
-            question_path=self.workdir /"template" / "question.json"
-            with open(question_path, "r") as f:
-                question = json.load(f)
-            self.info_logger(f"使用模板问题文件: {question_path}")
-        with open(self.workspace / "question" / "question.json", "w") as f:
-            json.dump(question, f, ensure_ascii=False, indent=4)
+            questionf = self.workdir /"template" / "question.json"
         
+        if(args.question_json):
+            question = json.loads(args.question_json)
+        else:
+            with open(questionf, "r") as f:
+                question = json.load(f)
+        
+        # parquet格式：问题对象直接包含 question, answer, tag 等字段
+        if "question" in question and isinstance(question["question"], str) and "tag" in question:
+            question_content = question.get("question", "")
+            question_tag = question.get("tag", {})
+            question_answer = question.get("answer", "")
+        # 模板格式：question 字段是包含完整信息的对象
+        elif "question" in question and isinstance(question["question"], dict):
+            question_content_obj = question["question"]
+            question_content = question_content_obj.get("question", "")
+            question_tag = question_content_obj.get("tag", {})
+            question_answer = question_content_obj.get("answer", "")
+        else:
+            question_content = ""
+            question_tag = {}
+            question_answer = ""
+
+        if args.question_content:
+            question_content = args.no_question_content
+        if args.question_tag:
+            question_tag = args.question_tag
+        if args.question_answer:
+            question_answer = args.question_answer
+        
+        with open(self.workspace / "question" / "question_content.json", "w") as f:
+            json.dump(question_content, f, ensure_ascii=False, indent=4)
+        with open(self.workspace / "question" / "question_tag.json", "w") as f:
+            json.dump(question_tag, f, ensure_ascii=False, indent=4)
+        with open(self.workspace / "question" / "question_answer.json", "w") as f:
+            json.dump(question_answer, f, ensure_ascii=False, indent=4)
+        
+
 
         if(args.workflow_file):
             zip_file = args.workflow_file
@@ -143,11 +171,36 @@ class AsyncWorkflowEngine:
     def _format_any(self, data, indent=2) -> str:
         """智能格式化任意数据为格式化的字符串，自动展开嵌套的 JSON 字符串"""
         
+        def _extract_runresult(obj):
+            """提取 RunResult 对象的关键字段"""
+            result = {}
+            if hasattr(obj, 'final_response'):
+                try:
+                    parsed_response = json.loads(obj.final_response)
+                    result["final_response"] = parsed_response
+                except (json.JSONDecodeError, TypeError):
+                    result["final_response"] = str(obj.final_response) if obj.final_response else None
+            if hasattr(obj, 'items'):
+                result["items_count"] = len(obj.items) if obj.items else 0
+            if hasattr(obj, 'usage'):
+                try:
+                    if obj.usage and hasattr(obj.usage, 'total') and hasattr(obj.usage.total, 'total_tokens'):
+                        result["total_tokens"] = obj.usage.total.total_tokens
+                    elif obj.usage and hasattr(obj.usage, 'last'):
+                        result["usage_last"] = str(obj.usage.last)
+                except:
+                    result["usage"] = str(obj.usage) if obj.usage else None
+            return result
+        
         def _expand_json_strings(obj):
             """递归展开对象中的 JSON 字符串"""
             if obj is None:
                 return None
+            # 优先处理 RunResult
+            elif type(obj).__name__ == 'RunResult':
+                return _extract_runresult(obj)
             elif isinstance(obj, str):
+                # 尝试解析 JSON 字符串
                 try:
                     parsed = json.loads(obj)
                     return _expand_json_strings(parsed)
@@ -159,29 +212,34 @@ class AsyncWorkflowEngine:
                 return [_expand_json_strings(item) for item in obj]
             elif isinstance(obj, set):
                 return [_expand_json_strings(item) for item in obj]
+            elif isinstance(obj, (int, float, bool)):
+                return obj
             elif hasattr(obj, '__dict__'):
                 return _expand_json_strings({k: _expand_json_strings(v) for k, v in vars(obj).items()})
             elif hasattr(obj, '__slots__'):
                 return {k: _expand_json_strings(getattr(obj, k)) for k in obj.__slots__}
             else:
-                return obj
+                return str(obj)
         
         def _convert_to_serializable(obj):
             """递归转换对象为可序列化的格式"""
             if obj is None:
                 return None
+            # 优先处理 RunResult
+            elif type(obj).__name__ == 'RunResult':
+                return _extract_runresult(obj)
             elif isinstance(obj, (str, int, float, bool)):
                 return obj
-            elif isinstance(obj, (dict, list, tuple)):
-                return obj
+            elif isinstance(obj, dict):
+                return {k: _convert_to_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [_convert_to_serializable(item) for item in obj]
             elif isinstance(obj, set):
                 return list(obj)
             elif hasattr(obj, '__dict__'):
                 return {k: _convert_to_serializable(v) for k, v in vars(obj).items()}
             elif hasattr(obj, '__slots__'):
                 return {k: _convert_to_serializable(getattr(obj, k)) for k in obj.__slots__}
-            elif isinstance(obj, (list, tuple)):
-                return [_convert_to_serializable(item) for item in obj]
             else:
                 return str(obj)
         
@@ -191,7 +249,11 @@ class AsyncWorkflowEngine:
             return json.dumps(serializable_data, indent=indent, ensure_ascii=False, default=str)
             
         except Exception as e:
-            return f"<格式化失败: {type(data).__name__}> {str(data)}"
+            # 更友好的错误处理
+            try:
+                return f"<格式化失败: {type(data).__name__}> {repr(data)[:500]}"
+            except:
+                return f"<格式化失败: {type(data).__name__}> {str(data)[:500]}"
     def init_workspace(self, thisworkspace: Path):
         """初始化工作空间"""
         print(f"✅ 初始化工作空间: {thisworkspace}")
@@ -256,7 +318,11 @@ class AsyncWorkflowEngine:
             else:
                 result = await agent_instance.run()
             self.static_usage(result.usage)
-            return json.loads(result.final_response)
+            try:
+                return json.loads(result.final_response)
+            except (json.JSONDecodeError, TypeError) as e:
+                self.err_logger(f"  [解析失败] {name}: {e}, 响应内容: {str(result.final_response)[:200]}")
+                return {"status": "parse_error", "raw_response": str(result.final_response)}
 
         # 顺序管线：按顺序执行多个子任务
         elif stype == "pipeline":
@@ -323,13 +389,18 @@ class AsyncWorkflowEngine:
         """显式关闭方法"""
         await self.codex.close()
         self.info_logger(f"总token数: {self.total_tokens}")
-        self.package_workflow()
+        if not self.unpack:
+            self.package_workflow()
         
     
     def __del__(self):
-        if not hasattr(self, '_closed') or not self._closed:
-            import warnings
-            warnings.warn(f"{self.__class__.__name__} 没有正确关闭，请使用 async with 或显式调用 close()", ResourceWarning)
+        try:
+            if not hasattr(self, '_closed') or not self._closed:
+                import warnings
+                warnings.warn(f"{self.__class__.__name__} 没有正确关闭，请使用 async with 或显式调用 close()", ResourceWarning)
+        except ImportError:
+            # Python 正在关闭中，忽略警告
+            pass
        # 主程序入口
 config = AppServerConfig()
 where_result = subprocess.run(["where", "codex.cmd"], text=True, capture_output=True, check=True,)
@@ -353,6 +424,10 @@ if __name__ == "__main__":
     parser.add_argument('-question_content', '-c', help='问题文字描述')
     parser.add_argument('-workflow_file', '-wz', help='工作流文件(zip格式)')
     parser.add_argument('-workflow_dir', '-w', help='工作流目录')
+    parser.add_argument('-question_tag', '-t', help='问题标签')
+    parser.add_argument('-question_answer', '-a', help='问题答案')
+    parser.add_argument('-question_json', '-q', help='问题json字符串')
+    parser.add_argument('-unpack', '-u', action='store_true', help='不打包工作流')
 
     args = parser.parse_args()
 

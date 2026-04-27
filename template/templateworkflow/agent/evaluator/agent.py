@@ -40,7 +40,9 @@ class Main:
         """读取 solution.json（或使用传入的解决方案），执行评估，返回评估结果"""
         
         self.copy_from_questionspace("solution.json")
-        self.copy_from_questionspace("question.json")
+        self.copy_from_questionspace("question_content.json")
+        self.copy_from_questionspace("question_tag.json")
+        self.copy_from_questionspace("question_answer.json")
         evaluator_prompt = self._load_prompt_file("instruction.md")
         evaluator_base_prompt = self._load_prompt_file("instruction_base.md") 
         prompt = self._load_prompt_file("prompt.md")

@@ -34,9 +34,10 @@ class Main:
             exit(1)
     
     async def run(self) -> dict:
-        """读取 question.json，规划解决方案，返回计划字典"""
+        """读取 question_content.json，规划解决方案，返回计划字典"""
 
-        self.copy_from_questionspace("question.json")
+        self.copy_from_questionspace("question_content.json")
+        self.copy_from_questionspace("question_tag.json")
         planner_instruction = self._load_prompt_file("instruction.md")
         planner_base_instruction = self._load_prompt_file("instruction_base.md")
         prompt = self._load_prompt_file("prompt.md")

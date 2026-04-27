@@ -38,6 +38,9 @@ class Main:
         """读取 plan.json（或使用传入的计划），执行步骤，返回解决方案"""
 
         self.copy_from_questionspace("plan.json")
+        self.copy_from_questionspace("question_content.json")
+        self.copy_from_questionspace("question_tag.json")
+
         builder_prompt = self._load_prompt_file("instruction.md")
         builder_base_prompt = self._load_prompt_file("instruction_base.md")
         prompt = self._load_prompt_file("prompt.md")
